@@ -182,27 +182,28 @@ function App() {
 
   return (
     <div className="app-shell">
-      <div className="hero-gradient" />
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">Internal Developer Tool</p>
-          <h1>Game Release Dashboard</h1>
-          <p className="lede">
-            Track game and software releases across Dev, QA, Staging, and Prod with a
-            simple deployment command center.
-          </p>
-        </div>
-        <div className="health-card">
-          <span className={`health-pill status-${health.status.toLowerCase()}`}>
-            API {health.status}
-          </span>
-          <p>
-            {health.timestamp
-              ? `Last health check: ${formatDate(health.timestamp)}`
-              : "Waiting for backend health telemetry."}
-          </p>
-        </div>
-      </header>
+      <section className="hero-panel">
+        <header className="page-header">
+          <div className="hero-copy">
+            <p className="eyebrow">Internal Developer Tool</p>
+            <h1>Game Release Dashboard</h1>
+            <p className="lede">
+              Track game and software releases across Dev, QA, Staging, and Prod with a
+              simple deployment command center.
+            </p>
+          </div>
+          <div className="health-card">
+            <span className={`health-pill status-${health.status.toLowerCase()}`}>
+              API {health.status}
+            </span>
+            <p>
+              {health.timestamp
+                ? `Last health check: ${formatDate(health.timestamp)}`
+                : "Waiting for backend health telemetry."}
+            </p>
+          </div>
+        </header>
+      </section>
 
       <section className="summary-grid">
         <SummaryCard label="Total Releases" value={summary.total} tone="neutral" />
