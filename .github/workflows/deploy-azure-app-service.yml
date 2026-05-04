@@ -1,0 +1,91 @@
+name: Deploy Azure App Service
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azure-production
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore .NET solution
+        run: dotnet restore GameReleaseDashboard.slnx
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend for same-origin hosting
+        run: npm run build
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: /
+
+      - name: Copy frontend build into backend wwwroot
+        run: |
+          rm -rf backend/wwwroot
+          mkdir -p backend/wwwroot
+          cp -R frontend/dist/. backend/wwwroot/
+
+      - name: Build backend
+        run: dotnet build backend/backend.csproj --configuration Release --no-restore
+
+      - name: Run backend integration tests
+        run: dotnet test backend.Tests/backend.Tests.csproj --configuration Release --no-build
+
+      - name: Publish backend for App Service
+        run: dotnet publish backend/backend.csproj --configuration Release --no-build --output ./published-app
+
+      - name: Upload deployment package
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-service-package
+          path: published-app
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: ${{ steps.deploy-to-production.outputs.webapp-url }}
+
+    steps:
+      - name: Download deployment package
+        uses: actions/download-artifact@v4
+        with:
+          name: app-service-package
+          path: published-app
+
+      - name: Deploy to Azure App Service production
+        id: deploy-to-production
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: published-app

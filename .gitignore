@@ -1,0 +1,9 @@
+bin/
+obj/
+node_modules/
+dist/
+published-app/
+.DS_Store
+backend/App_Data/
+backend/wwwroot/*
+!backend/wwwroot/.gitkeep
