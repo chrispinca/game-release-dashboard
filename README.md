@@ -1,6 +1,6 @@
 # Game Release Dashboard
 
-Game Release Dashboard is a small internal tool for tracking game and software releases across environments like Dev, QA, Staging, and Prod. The project uses a React frontend, an ASP.NET Core Web API backend, Docker support, GitHub Actions CI/CD, and an Azure App Service deployment path with Azure SQL for hosted environments.
+Game Release Dashboard is a small internal tool for tracking game and software releases across environments like Dev, QA, Staging, and Prod. The project uses a React frontend, an ASP.NET Core Web API backend, Docker support, GitHub Actions CI/CD, and a Linux Azure App Service container deployment path with Azure SQL for hosted environments.
 
 ## Features
 
@@ -48,7 +48,7 @@ The frontend runs on `http://localhost:5173` and talks to the backend at `http:/
 
 ## Production hosting model
 
-For Azure App Service deployment, the React app is built and copied into `backend/wwwroot` during the GitHub Actions workflow. That lets a single ASP.NET Core app serve both the API and the dashboard UI from the same App Service.
+For Azure App Service container deployment, the root [Dockerfile](/Users/cpinca/Desktop/GitHub/game-release-dashboard/Dockerfile) builds the React app, copies it into `backend/wwwroot`, publishes the ASP.NET app, and ships one Linux container that serves both the dashboard UI and the API.
 
 ### Integration tests
 
@@ -83,20 +83,28 @@ Then open:
 
 ## GitHub Actions
 
-- `.github/workflows/ci.yml` runs build, test, and Docker validation on pushes and pull requests.
-- `.github/workflows/deploy-azure-app-service.yml` builds the frontend and backend, packages the app, and deploys from `main` to Azure App Service.
+- `.github/workflows/ci.yml` runs build, test, and production-container validation on pushes and pull requests.
+- `.github/workflows/deploy-azure-app-service.yml` builds the production image, pushes it to Azure Container Registry, and deploys that image to Azure App Service on `main`.
 
 ## Azure App Service setup
 
-1. Create an Azure App Service web app.
-2. Create an Azure SQL database.
-3. Add these GitHub repository secrets:
+1. Create an Azure Container Registry.
+2. Create an Azure App Service web app with:
+   - `Publish: Container`
+   - `Operating System: Linux`
+3. Create an Azure SQL database.
+4. In the App Service `Deployment Center` or `Container` settings, point the app at your Azure Container Registry once so the app stores the registry access configuration.
+5. Add these GitHub repository secrets:
    - `AZURE_WEBAPP_NAME`
    - `AZURE_WEBAPP_PUBLISH_PROFILE`
-4. In Azure App Service Configuration, add:
+   - `AZURE_CONTAINER_REGISTRY_LOGIN_SERVER`
+   - `AZURE_CONTAINER_REGISTRY_USERNAME`
+   - `AZURE_CONTAINER_REGISTRY_PASSWORD`
+6. In Azure App Service Configuration, add:
    - `ASPNETCORE_ENVIRONMENT=Production`
+   - `WEBSITES_PORT=8080`
    - `ConnectionStrings__ReleaseDb=Server=tcp:<server>.database.windows.net,1433;Initial Catalog=<database>;Persist Security Info=False;User ID=<user>;Password=<password>;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;`
-5. Push to `main` or run the deploy workflow manually.
+7. Push to `main` or run the deploy workflow manually.
 
 ### Azure SQL note
 
@@ -106,8 +114,8 @@ Azure SQL is a stronger production story than SQLite because it supports managed
 
 1. Push `main`.
 2. Add the Azure deployment secrets.
-3. Set the Azure SQL connection string in Azure App Service.
-4. Let GitHub Actions handle CI and production deploys from `main`.
+3. Set `WEBSITES_PORT=8080` and the Azure SQL connection string in Azure App Service.
+4. Let GitHub Actions build, push, and deploy the Linux container from `main`.
 
 ## Example release payload
 

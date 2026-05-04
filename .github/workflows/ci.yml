@@ -44,13 +44,5 @@ jobs:
         run: npm run build
         working-directory: frontend
 
-      - name: Copy frontend build into backend wwwroot
-        run: |
-          mkdir -p backend/wwwroot
-          cp -R frontend/dist/. backend/wwwroot/
-
-      - name: Build backend Docker image
-        run: docker build -t game-release-dashboard-backend ./backend
-
-      - name: Build frontend Docker image
-        run: docker build --build-arg VITE_API_BASE_URL=/ -t game-release-dashboard-frontend ./frontend
+      - name: Build production container image
+        run: docker build -t game-release-dashboard-app .

@@ -14,8 +14,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.deploy-to-app-service.outputs.webapp-url }}
+
+    env:
+      IMAGE_NAME: game-release-dashboard
+      REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY_LOGIN_SERVER }}
 
     steps:
       - name: Checkout repository
@@ -46,46 +53,31 @@ jobs:
         env:
           VITE_API_BASE_URL: /
 
-      - name: Copy frontend build into backend wwwroot
-        run: |
-          rm -rf backend/wwwroot
-          mkdir -p backend/wwwroot
-          cp -R frontend/dist/. backend/wwwroot/
-
       - name: Build .NET solution
         run: dotnet build GameReleaseDashboard.slnx --configuration Release --no-restore
 
       - name: Run backend integration tests
         run: dotnet test backend.Tests/backend.Tests.csproj --configuration Release --no-restore
 
-      - name: Publish backend for App Service
-        run: dotnet publish backend/backend.csproj --configuration Release --no-build --output ./published-app
-
-      - name: Upload deployment package
-        uses: actions/upload-artifact@v4
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v2
         with:
-          name: app-service-package
-          path: published-app
+          login-server: ${{ secrets.AZURE_CONTAINER_REGISTRY_LOGIN_SERVER }}
+          username: ${{ secrets.AZURE_CONTAINER_REGISTRY_USERNAME }}
+          password: ${{ secrets.AZURE_CONTAINER_REGISTRY_PASSWORD }}
 
-  deploy-production:
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/main'
-    environment:
-      name: production
-      url: ${{ steps.deploy-to-production.outputs.webapp-url }}
+      - name: Build and push container image
+        run: |
+          IMAGE_SHA_TAG="${REGISTRY}/${IMAGE_NAME}:${GITHUB_SHA}"
+          IMAGE_LATEST_TAG="${REGISTRY}/${IMAGE_NAME}:latest"
+          docker build -t "${IMAGE_SHA_TAG}" -t "${IMAGE_LATEST_TAG}" .
+          docker push "${IMAGE_SHA_TAG}"
+          docker push "${IMAGE_LATEST_TAG}"
 
-    steps:
-      - name: Download deployment package
-        uses: actions/download-artifact@v4
-        with:
-          name: app-service-package
-          path: published-app
-
-      - name: Deploy to Azure App Service production
-        id: deploy-to-production
+      - name: Deploy container to Azure App Service
+        id: deploy-to-app-service
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: published-app
+          images: ${{ secrets.AZURE_CONTAINER_REGISTRY_LOGIN_SERVER }}/game-release-dashboard:${{ github.sha }}
