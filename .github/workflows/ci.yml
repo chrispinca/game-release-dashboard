@@ -23,8 +23,8 @@ jobs:
       - name: Restore .NET solution
         run: dotnet restore GameReleaseDashboard.slnx
 
-      - name: Build backend
-        run: dotnet build backend/backend.csproj --configuration Release --no-restore
+      - name: Build .NET solution
+        run: dotnet build GameReleaseDashboard.slnx --configuration Release --no-restore
 
       - name: Run backend integration tests
         run: dotnet test backend.Tests/backend.Tests.csproj --configuration Release --no-restore

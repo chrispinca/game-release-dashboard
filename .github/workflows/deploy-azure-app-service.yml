@@ -52,11 +52,11 @@ jobs:
           mkdir -p backend/wwwroot
           cp -R frontend/dist/. backend/wwwroot/
 
-      - name: Build backend
-        run: dotnet build backend/backend.csproj --configuration Release --no-restore
+      - name: Build .NET solution
+        run: dotnet build GameReleaseDashboard.slnx --configuration Release --no-restore
 
       - name: Run backend integration tests
-        run: dotnet test backend.Tests/backend.Tests.csproj --configuration Release --no-build
+        run: dotnet test backend.Tests/backend.Tests.csproj --configuration Release --no-restore
 
       - name: Publish backend for App Service
         run: dotnet publish backend/backend.csproj --configuration Release --no-build --output ./published-app
